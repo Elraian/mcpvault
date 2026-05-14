@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Elraian/mcpvault"
+    "url": "git+https://github.com/Elraian/mcpvault.git"
   },
   "homepage": "https://github.com/Elraian/mcpvault#readme",
   "bugs": "https://github.com/Elraian/mcpvault/issues",

@@ -144,6 +144,13 @@ Most MCP servers are locked to one account at startup. If you have 10 Supabase p
 - v3: Account "contexts" — switch Supabase + GitHub + Vercel + Stripe atomically per project
 - v4: Web UI (Tauri / system tray)
 
+## Credits
+
+Built by **[AISIDE](https://github.com/Elraian)** — [@Elraian](https://github.com/Elraian).
+Marketing site: [mcpvault-website](https://github.com/Elraian/mcpvault-website) *(coming soon)*.
+
+If you find this useful, the cheapest way to say thanks is a star on [the repo](https://github.com/Elraian/mcpvault).
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

@@ -28,5 +28,10 @@ dist/
 # Vault data must never be committed (lives in user home, but defense in depth)
 .mcp-vault/
 .mvault/
+.mcpvault/
 vault.enc
 active.json
+
+# Marketing site lives in its own repo (Elraian/mcpvault-website)
+landing-next/
+landing.html

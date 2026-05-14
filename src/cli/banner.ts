@@ -104,7 +104,7 @@ function statusLines(s: StatusSnapshot): string[] {
 }
 
 const TAGLINE = "Local credential vault for AI agents";
-const META = "v0.1.0  ·  github.com/Elraian/mcpvault";
+const META = "v0.1.0  ·  by AISIDE  ·  github.com/Elraian/mcpvault";
 
 const SUGGESTIONS_INIT: string[] = [
   `${acid("mcpvault init")}                  create the vault`,

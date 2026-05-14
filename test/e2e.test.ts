@@ -141,7 +141,7 @@ describe("MCP server over stdio", () => {
     });
     await waitFor(() => responses.some((r) => r.id === 1), 5000);
     const init = responses.find((r) => r.id === 1);
-    expect(init?.result?.serverInfo?.name).toBe("mcp-vault");
+    expect(init?.result?.serverInfo?.name).toBe("mcpvault");
 
     // 2) initialized notification
     send({ jsonrpc: "2.0", method: "notifications/initialized" });

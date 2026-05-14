@@ -38,7 +38,7 @@ export async function cmdUpdate(serviceArg: string, label: string): Promise<void
   const vault = await openWithCachedKey();
   const existing = vault.get(service, label);
 
-  intro(c.bgCyan(c.black(` mvault update ${service} ${label} `)));
+  intro(c.bgCyan(c.black(` mcpvault update ${service} ${label} `)));
 
   const picks = await pickMany<"description" | "tags" | "credentials">(
     "What to change?",

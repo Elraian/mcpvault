@@ -2,14 +2,17 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 
-const NEW_DIR = join(homedir(), ".mvault");
-const LEGACY_DIR = join(homedir(), ".mcp-vault");
+const NEW_DIR = join(homedir(), ".mcpvault");
+const LEGACY_MVAULT_DIR = join(homedir(), ".mvault");
+const LEGACY_MCP_VAULT_DIR = join(homedir(), ".mcp-vault");
 
 function resolveVaultDir(): string {
+  if (process.env.MCPVAULT_DIR) return process.env.MCPVAULT_DIR;
   if (process.env.MVAULT_DIR) return process.env.MVAULT_DIR;
   if (process.env.MCP_VAULT_DIR) return process.env.MCP_VAULT_DIR;
-  // Existing installs keep working — prefer legacy dir if it already has data.
-  if (existsSync(join(LEGACY_DIR, "vault.enc"))) return LEGACY_DIR;
+  // Existing installs keep working — prefer legacy dirs if they already have data.
+  if (existsSync(join(LEGACY_MCP_VAULT_DIR, "vault.enc"))) return LEGACY_MCP_VAULT_DIR;
+  if (existsSync(join(LEGACY_MVAULT_DIR, "vault.enc"))) return LEGACY_MVAULT_DIR;
   return NEW_DIR;
 }
 

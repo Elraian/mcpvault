@@ -11,7 +11,7 @@ export async function cmdList(serviceArg?: string): Promise<void> {
   const filter = serviceArg ? (ServiceSchema.parse(serviceArg) as Service) : undefined;
   const rows = vault.list(filter);
   if (rows.length === 0) {
-    process.stdout.write(c.dim("No accounts. Run `mvault add <service>` to add one.\n"));
+    process.stdout.write(c.dim("No accounts. Run `mcpvault add <service>` to add one.\n"));
     return;
   }
   const grouped = new Map<Service, typeof rows>();

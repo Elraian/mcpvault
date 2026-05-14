@@ -83,7 +83,7 @@ async function collectCreds(service: Service): Promise<Record<string, string | u
 
 export async function cmdAdd(serviceArg: string): Promise<void> {
   const service = ServiceSchema.parse(serviceArg) as Service;
-  intro(c.bgCyan(c.black(` mvault add ${service} `)));
+  intro(c.bgCyan(c.black(` mcpvault add ${service} `)));
 
   const vault = await openWithCachedKey();
   const tokenInfo = TOKEN_URLS[service];
@@ -174,7 +174,7 @@ export async function cmdAdd(serviceArg: string): Promise<void> {
 
     outro(
       `${c.green("✓")} Saved ${c.bold(service)} account ${c.cyan(account.label)}.\n` +
-        `Activate: ${c.dim(`mvault activate ${service} ${account.label}`)}\n` +
+        `Activate: ${c.dim(`mcpvault activate ${service} ${account.label}`)}\n` +
         `Or ask Claude: ${c.dim(`"switch to ${account.label}"`)}`,
     );
     return;

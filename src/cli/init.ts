@@ -5,7 +5,7 @@ import { unlockWithPassword } from "../session.js";
 import { askPassword, spinner, c } from "./prompt.js";
 
 export async function cmdInit(): Promise<void> {
-  intro(c.bgCyan(c.black(" mvault init ")));
+  intro(c.bgCyan(c.black(" mcpvault init ")));
 
   if (await vaultFileExists()) {
     log.error(`A vault already exists at ${VAULT_FILE}.`);
@@ -40,7 +40,7 @@ export async function cmdInit(): Promise<void> {
 
   outro(
     `${c.green("Done.")} Next steps:\n` +
-      `  ${c.cyan("mvault add supabase")}   — add a Supabase account\n` +
-      `  ${c.cyan("mvault setup")}          — wire into Claude Code / Desktop / Cursor`,
+      `  ${c.cyan("mcpvault add supabase")}   — add a Supabase account\n` +
+      `  ${c.cyan("mcpvault setup")}          — wire into Claude Code / Desktop / Cursor`,
   );
 }

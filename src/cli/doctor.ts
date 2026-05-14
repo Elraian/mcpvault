@@ -20,7 +20,7 @@ export async function cmdDoctor(): Promise<void> {
     }
   };
 
-  process.stdout.write(`\n${c.bold("mvault doctor")}\n`);
+  process.stdout.write(`\n${c.bold("mcpvault doctor")}\n`);
   process.stdout.write(`  ${c.dim("vault dir:")} ${VAULT_DIR}\n\n`);
 
   await check("vault file exists", async () => {
@@ -28,11 +28,11 @@ export async function cmdDoctor(): Promise<void> {
       const s = await stat(VAULT_FILE);
       return s.isFile() ? true : "not a file";
     } catch {
-      return "not initialized — run `mvault init`";
+      return "not initialized — run `mcpvault init`";
     }
   });
 
-  await check("vault unlocked (OS keyring has session key)", async () => (isUnlocked() ? true : "locked — run `mvault unlock`"));
+  await check("vault unlocked (OS keyring has session key)", async () => (isUnlocked() ? true : "locked — run `mcpvault unlock`"));
 
   await check("active.json readable", async () => {
     try {

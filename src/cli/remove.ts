@@ -11,7 +11,7 @@ export async function cmdRemove(serviceArg: string, label: string): Promise<void
   const vault = await openWithCachedKey();
   vault.get(service, label); // throws if missing
 
-  intro(c.bgRed(c.black(` mvault remove ${service} ${label} `)));
+  intro(c.bgRed(c.black(` mcpvault remove ${service} ${label} `)));
   log.warn(`This will permanently delete the ${service} account "${label}" and its stored credentials.`);
 
   const typed = await ask(`Type ${c.cyan(label)} to confirm`);

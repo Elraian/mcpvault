@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pickMany, confirm, c } from "./prompt.js";
 
-// Resolve mvault's own dist/index.js so the MCP entries point at this install.
+// Resolve mcpvault's own dist/index.js so the MCP entries point at this install.
 function resolveEntry(): string {
   // Built code lives at <pkg>/dist/cli/setup.js. Walk up to dist/index.js.
   const here = fileURLToPath(import.meta.url);
@@ -110,7 +110,7 @@ async function patch(client: ClientTarget, entries: Record<string, unknown>): Pr
   // Backup existing file before mutation.
   let backupPath: string | undefined;
   if (present) {
-    backupPath = `${client.configPath}.mvault-bak-${Date.now()}`;
+    backupPath = `${client.configPath}.mcpvault-bak-${Date.now()}`;
     await copyFile(client.configPath, backupPath);
   } else {
     await mkdir(dirname(client.configPath), { recursive: true });
@@ -124,7 +124,7 @@ async function patch(client: ClientTarget, entries: Record<string, unknown>): Pr
 }
 
 export async function cmdSetup(): Promise<void> {
-  intro(c.bgCyan(c.black(" mvault setup ")));
+  intro(c.bgCyan(c.black(" mcpvault setup ")));
 
   const entry = resolveEntry();
   const entries: Record<string, unknown> = {

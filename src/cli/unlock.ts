@@ -5,10 +5,10 @@ import { logEvent } from "../log.js";
 
 export async function cmdUnlock(): Promise<void> {
   if (isUnlocked()) {
-    log.info("Vault is already unlocked. Run `mvault lock` first if you want to re-enter the password.");
+    log.info("Vault is already unlocked. Run `mcpvault lock` first if you want to re-enter the password.");
     return;
   }
-  intro(c.bgCyan(c.black(" mvault unlock ")));
+  intro(c.bgCyan(c.black(" mcpvault unlock ")));
   const pw = await askPassword("Master password");
   const s = spinner();
   s.start("Deriving key (Argon2id, ~5s)");

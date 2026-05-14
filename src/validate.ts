@@ -44,7 +44,7 @@ export async function validateGitHub(pat: string): Promise<ValidationResult> {
       headers: {
         Authorization: `Bearer ${pat}`,
         Accept: "application/vnd.github+json",
-        "User-Agent": "mvault",
+        "User-Agent": "mcpvault",
       },
     });
     if (!res.ok) {

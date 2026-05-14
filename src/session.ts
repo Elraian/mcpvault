@@ -7,14 +7,14 @@ import { loadSession, saveSession, clearSession, type CachedSession } from "./ke
 
 export class VaultNotInitializedError extends Error {
   constructor() {
-    super("vault not initialized — run `mvault init` first");
+    super("vault not initialized — run `mcpvault init` first");
     this.name = "VaultNotInitializedError";
   }
 }
 
 export class VaultLockedError extends Error {
   constructor() {
-    super("vault is locked — run `mvault unlock` or use the unlock_vault tool");
+    super("vault is locked — run `mcpvault unlock` or use the unlock_vault tool");
     this.name = "VaultLockedError";
   }
 }

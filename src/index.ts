@@ -4,7 +4,7 @@ import { Command } from "commander";
 const program = new Command();
 
 program
-  .name("mvault")
+  .name("mcpvault")
   .description("Local MCP credential vault — multi-account credentials for AI agents")
   .version("0.1.0");
 

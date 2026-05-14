@@ -8,6 +8,13 @@ program
   .description("Local MCP credential vault — multi-account credentials for AI agents")
   .version("0.1.0");
 
+// `mcpvault` alone → branded welcome with status snapshot.
+// `mcpvault --help` / `mcpvault <cmd> --help` still use commander's text help.
+program.action(async () => {
+  const { printWelcome } = await import("./cli/banner.js");
+  await printWelcome();
+});
+
 // ─── Vault management (user-facing) ─────────────────────────────────────────────
 
 program

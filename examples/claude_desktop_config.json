@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "vault": {
+      "command": "mcp-vault",
+      "args": ["server"]
+    },
+    "supabase": {
+      "command": "mcp-vault",
+      "args": ["wrap", "supabase"]
+    },
+    "github": {
+      "command": "mcp-vault",
+      "args": ["wrap", "github"]
+    },
+    "vercel": {
+      "command": "mcp-vault",
+      "args": ["wrap", "vercel"]
+    },
+    "stripe": {
+      "command": "mcp-vault",
+      "args": ["wrap", "stripe"]
+    }
+  }
+}

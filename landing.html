@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mcp-vault — Local credential vault for Claude and other AI agents</title>
+    <meta
+      name="description"
+      content="Store many accounts per service (Supabase, GitHub, Vercel, Stripe) in an AES-256-GCM encrypted vault. Let Claude pick the right one on the fly — no restart, no token-swapping by hand."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+              mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
+            },
+            colors: {
+              ink: {
+                950: "#070708",
+                900: "#0b0b0d",
+                850: "#0f1012",
+                800: "#141518",
+                700: "#1c1d22",
+                600: "#23252b",
+                500: "#3a3d46",
+              },
+              accent: {
+                500: "#a5b4fc",
+                400: "#c7d2fe",
+              },
+            },
+            boxShadow: {
+              soft: "0 1px 0 0 rgba(255,255,255,0.04) inset, 0 1px 2px rgba(0,0,0,0.4)",
+              glow: "0 0 0 1px rgba(165,180,252,0.18), 0 10px 60px -10px rgba(165,180,252,0.25)",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      html,
+      body {
+        background-color: #070708;
+        color: #e7e7ea;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .grid-bg {
+        background-image:
+          radial-gradient(circle at 50% 0%, rgba(165, 180, 252, 0.10), transparent 55%),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 100% 100%, 64px 64px, 64px 64px;
+      }
+      .hairline {
+        border-color: rgba(255, 255, 255, 0.07);
+      }
+      .hairline-strong {
+        border-color: rgba(255, 255, 255, 0.10);
+      }
+      .text-faint {
+        color: rgba(231, 231, 234, 0.55);
+      }
+      .text-muted {
+        color: rgba(231, 231, 234, 0.72);
+      }
+      .gradient-border {
+        position: relative;
+      }
+      .gradient-border::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.16),
+          rgba(255, 255, 255, 0.04) 40%,
+          rgba(165, 180, 252, 0.18)
+        );
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+      .terminal-caret {
+        animation: blink 1.1s steps(1) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .scroll-fade {
+        mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+      }
+      .marquee {
+        animation: scroll 40s linear infinite;
+      }
+      @keyframes scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+      details > summary {
+        list-style: none;
+        cursor: pointer;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      details[open] .chev {
+        transform: rotate(45deg);
+      }
+      .chev {
+        transition: transform 200ms ease;
+      }
+      ::selection {
+        background: rgba(165, 180, 252, 0.25);
+      }
+    </style>
+  </head>
+  <body class="font-sans">
+    <!-- ============== NAV ============== -->
+    <header class="sticky top-0 z-40 border-b hairline backdrop-blur bg-ink-950/70">
+      <div class="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between">
+        <a href="#" class="flex items-center gap-2.5 group">
+          <span
+            class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-ink-800 hairline border ring-1 ring-white/5"
+          >
+            <!-- mark: lock + key combined -->
+            <svg viewBox="0 0 20 20" class="h-3.5 w-3.5 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M5 9V6.5a3.5 3.5 0 117 0V9" stroke-linecap="round" />
+              <rect x="3.5" y="9" width="10" height="7.5" rx="1.5" />
+              <circle cx="8.5" cy="13" r="1.1" />
+              <path d="M14.5 13h2.5" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="text-[15px] font-semibold tracking-tight">mcp-vault</span>
+          <span
+            class="ml-1.5 hidden sm:inline-flex items-center rounded-full border hairline-strong px-2 py-0.5 text-[10.5px] font-mono uppercase tracking-wider text-faint"
+          >v1</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-7 text-sm text-muted">
+          <a href="#how" class="hover:text-white transition">How it works</a>
+          <a href="#security" class="hover:text-white transition">Security</a>
+          <a href="#services" class="hover:text-white transition">Services</a>
+          <a href="#install" class="hover:text-white transition">Install</a>
+          <a href="#faq" class="hover:text-white transition">FAQ</a>
+        </nav>
+        <div class="flex items-center gap-2">
+          <a
+            href="#install"
+            class="hidden sm:inline-flex items-center h-8 px-3 rounded-md text-sm text-muted hover:text-white hover:bg-white/5 transition"
+            >Docs</a
+          >
+          <a
+            href="https://github.com/"
+            class="inline-flex items-center gap-2 h-8 px-3 rounded-md bg-white text-ink-950 text-sm font-medium hover:bg-white/90 transition"
+          >
+            <svg viewBox="0 0 16 16" class="h-3.5 w-3.5" fill="currentColor">
+              <path d="M8 0a8 8 0 00-2.53 15.59c.4.07.55-.17.55-.38v-1.34c-2.22.48-2.69-1.07-2.69-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.13 0 0 .67-.21 2.2.82a7.6 7.6 0 014 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.51.56.82 1.28.82 2.15 0 3.07-1.87 3.74-3.66 3.94.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 008 0z" />
+            </svg>
+            <span>GitHub</span>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============== HERO ============== -->
+    <section class="relative grid-bg border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32">
+        <div class="flex flex-col items-center text-center max-w-3xl mx-auto">
+          <a
+            href="#security"
+            class="group inline-flex items-center gap-2 rounded-full border hairline-strong bg-ink-900/60 pl-1 pr-3 py-1 text-xs text-muted hover:text-white transition"
+          >
+            <span
+              class="inline-flex items-center rounded-full bg-accent-500/10 text-accent-500 px-2 py-0.5 text-[10.5px] font-mono uppercase tracking-wider"
+              >New</span
+            >
+            <span>AES-256-GCM, Argon2id KDF, key in OS keychain</span>
+            <svg viewBox="0 0 12 12" class="h-3 w-3 opacity-60 group-hover:translate-x-0.5 transition" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 2l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+
+          <h1 class="mt-6 text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
+            One vault. Every account.<br />
+            <span class="text-faint">Claude picks the right one.</span>
+          </h1>
+
+          <p class="mt-6 text-lg text-muted max-w-2xl leading-relaxed">
+            mcp-vault is a local, encrypted credential store for AI agents. Keep many
+            accounts per service — Supabase, GitHub, Vercel, Stripe — and switch
+            between them from natural language. No restart, no token-swapping by hand.
+          </p>
+
+          <div class="mt-8 flex flex-col sm:flex-row items-center gap-3">
+            <a
+              href="#install"
+              class="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-white text-ink-950 text-sm font-medium hover:bg-white/90 transition shadow-soft"
+            >
+              <span>Install mcp-vault</span>
+              <svg viewBox="0 0 12 12" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 2l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </a>
+            <a
+              href="#how"
+              class="inline-flex items-center gap-2 h-10 px-4 rounded-lg border hairline-strong bg-ink-900/60 text-sm text-muted hover:text-white hover:bg-white/5 transition"
+            >
+              <svg viewBox="0 0 14 14" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polygon points="5,3 11,7 5,11" fill="currentColor" stroke="none" />
+              </svg>
+              <span>See it in action</span>
+            </a>
+          </div>
+
+          <p class="mt-5 text-xs text-faint font-mono">
+            $ npm install -g mcp-vault &nbsp;·&nbsp; macOS · Windows · Linux
+          </p>
+        </div>
+
+        <!-- HERO VISUAL: chat + terminal split -->
+        <div class="relative mt-16 md:mt-20 mx-auto max-w-5xl">
+          <div
+            class="absolute -inset-x-12 -inset-y-8 -z-10 opacity-60 blur-3xl bg-gradient-to-b from-accent-500/15 via-transparent to-transparent"
+          ></div>
+
+          <div
+            class="rounded-xl gradient-border bg-ink-900/80 backdrop-blur shadow-glow overflow-hidden"
+          >
+            <!-- window chrome -->
+            <div class="flex items-center gap-1.5 px-4 h-9 border-b hairline">
+              <span class="h-2.5 w-2.5 rounded-full bg-white/15"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-white/15"></span>
+              <span class="h-2.5 w-2.5 rounded-full bg-white/15"></span>
+              <div class="ml-3 text-[11px] font-mono text-faint">claude · mcp-vault</div>
+            </div>
+
+            <div class="grid md:grid-cols-2 divide-x divide-white/5">
+              <!-- Chat side -->
+              <div class="p-5 md:p-6 space-y-4">
+                <div class="flex items-start gap-3">
+                  <span
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[10.5px] font-medium text-faint"
+                    >You</span
+                  >
+                  <div class="rounded-lg border hairline-strong bg-ink-850 px-3.5 py-2.5 text-[14px] text-muted leading-relaxed">
+                    I'm working on <span class="text-white">Acme</span> today. Switch me
+                    to that Supabase account and list the projects.
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                  <span
+                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-500/15 text-accent-500 text-[10.5px] font-semibold"
+                    >C</span
+                  >
+                  <div class="space-y-2 w-full">
+                    <div class="rounded-lg border hairline bg-ink-850/60 px-3 py-2 text-[12px] font-mono text-muted">
+                      <span class="text-accent-500">find_account</span>("supabase", "Acme")
+                      <span class="text-faint">→</span> <span class="text-white">client-acme</span>
+                    </div>
+                    <div class="rounded-lg border hairline bg-ink-850/60 px-3 py-2 text-[12px] font-mono text-muted">
+                      <span class="text-accent-500">activate_account</span>("supabase",
+                      "client-acme") <span class="text-faint">→</span> ✓
+                    </div>
+                    <div class="rounded-lg border hairline bg-ink-850/60 px-3 py-2 text-[12px] font-mono text-muted">
+                      <span class="text-accent-500">supabase_list_projects</span>()
+                    </div>
+                    <div class="rounded-lg border hairline-strong bg-ink-850 px-3.5 py-2.5 text-[13.5px] text-muted leading-relaxed">
+                      You're now on <span class="text-white">client-acme</span>. 3
+                      projects: <span class="text-white">acme-prod</span>,
+                      <span class="text-white">acme-staging</span>,
+                      <span class="text-white">acme-analytics</span>.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Terminal side -->
+              <div class="bg-ink-950/60 p-5 md:p-6 font-mono text-[12.5px] leading-relaxed">
+                <div class="text-faint text-[11px] mb-3 uppercase tracking-wider">~/.mcp-vault</div>
+                <div><span class="text-faint">$</span> mcp-vault list supabase</div>
+                <div class="mt-1 ml-3 space-y-0.5">
+                  <div>
+                    <span class="text-accent-500">●</span>
+                    <span class="text-white">personal</span>
+                    <span class="text-faint">— My side projects</span>
+                  </div>
+                  <div>
+                    <span class="text-faint">○</span>
+                    <span class="text-muted">client-acme</span>
+                    <span class="text-faint">— Acme Corp production project</span>
+                  </div>
+                  <div>
+                    <span class="text-faint">○</span>
+                    <span class="text-muted">client-merel</span>
+                    <span class="text-faint">— Merel staging</span>
+                  </div>
+                  <div>
+                    <span class="text-faint">○</span>
+                    <span class="text-muted">demo</span>
+                    <span class="text-faint">— Throwaway demo org</span>
+                  </div>
+                </div>
+                <div class="mt-4"><span class="text-faint">$</span> mcp-vault status</div>
+                <div class="ml-3 text-muted">vault: <span class="text-emerald-400">unlocked</span> · key cached in keychain</div>
+                <div class="ml-3 text-muted">accounts: <span class="text-white">12</span> across <span class="text-white">4</span> services</div>
+                <div class="mt-4">
+                  <span class="text-faint">$</span>
+                  <span class="terminal-caret">▍</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logo strip -->
+        <div class="mt-16">
+          <p class="text-center text-[11px] uppercase tracking-[0.2em] text-faint">
+            Wraps the services you already use
+          </p>
+          <div class="mt-6 scroll-fade overflow-hidden">
+            <div class="marquee flex items-center gap-12 whitespace-nowrap text-faint">
+              <!-- repeat twice for seamless loop -->
+              <span class="text-base font-semibold tracking-tight">Supabase</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">GitHub</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Vercel</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Stripe</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Claude Desktop</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">MCP</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Supabase</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">GitHub</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Vercel</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Stripe</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">Claude Desktop</span>
+              <span class="text-faint">·</span>
+              <span class="text-base font-semibold tracking-tight">MCP</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== PROBLEM ============== -->
+    <section class="border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div class="max-w-2xl">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">
+            The problem
+          </p>
+          <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+            One agent. Five clients. Twenty&nbsp;tokens in a notes&nbsp;app.
+          </h2>
+          <p class="mt-4 text-muted leading-relaxed">
+            Every MCP server expects a single set of credentials in env vars. So you
+            either restart Claude every time you change clients, or you give one agent
+            access to everything at once. Neither is fine.
+          </p>
+        </div>
+
+        <div class="mt-12 grid md:grid-cols-2 gap-4">
+          <!-- BEFORE -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-faint font-mono">
+              <span class="h-1.5 w-1.5 rounded-full bg-rose-400/70"></span> Before
+            </div>
+            <ul class="mt-5 space-y-3.5 text-[14.5px] text-muted leading-relaxed">
+              <li class="flex gap-3"><span class="text-rose-400/70 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>Edit <code class="font-mono text-[13px] text-white/85">claude_desktop_config.json</code>, swap a token, restart Claude.</li>
+              <li class="flex gap-3"><span class="text-rose-400/70 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>Or paste the same PAT into every wrapper and pray you're hitting the right project.</li>
+              <li class="flex gap-3"><span class="text-rose-400/70 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>Tokens scattered across 1Password, .env files, Notion, Slack DMs.</li>
+              <li class="flex gap-3"><span class="text-rose-400/70 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>No record of which account the agent used when it ran a query.</li>
+            </ul>
+          </div>
+
+          <!-- AFTER -->
+          <div class="rounded-xl gradient-border bg-ink-900/80 p-6 shadow-glow">
+            <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-accent-500 font-mono">
+              <span class="h-1.5 w-1.5 rounded-full bg-accent-500"></span> With mcp-vault
+            </div>
+            <ul class="mt-5 space-y-3.5 text-[14.5px] text-muted leading-relaxed">
+              <li class="flex gap-3"><span class="text-accent-500 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>One encrypted file. Many accounts per service.</li>
+              <li class="flex gap-3"><span class="text-accent-500 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>"Switch me to the Acme Supabase" → Claude does it. Instant. No restart.</li>
+              <li class="flex gap-3"><span class="text-accent-500 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>Credentials never leave the wrapper process — Claude only sees results.</li>
+              <li class="flex gap-3"><span class="text-accent-500 mt-1.5 h-1 w-1 rounded-full shrink-0 bg-current"></span>Append-only audit log: who-was-used-when, never the secret itself.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== HOW IT WORKS ============== -->
+    <section id="how" class="border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 max-w-4xl">
+          <div>
+            <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">
+              How it works
+            </p>
+            <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+              Three pieces. Two are invisible.
+            </h2>
+          </div>
+          <p class="text-muted max-w-md">
+            A CLI to manage accounts, a vault MCP server Claude can call, and per-service wrappers that re-read the active account on every request.
+          </p>
+        </div>
+
+        <div class="mt-14 grid md:grid-cols-3 gap-px bg-white/5 border hairline-strong rounded-xl overflow-hidden">
+          <!-- Step 1 -->
+          <div class="bg-ink-900/60 p-7">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-faint">01 — Add</span>
+              <span class="font-mono text-[10.5px] text-faint">CLI</span>
+            </div>
+            <h3 class="mt-4 text-lg font-semibold tracking-tight">Drop credentials into the vault</h3>
+            <p class="mt-2 text-[14px] text-muted leading-relaxed">
+              <code class="font-mono text-[12.5px] text-white/85">mcp-vault add supabase</code> walks you through label, description, and PAT. The description is what fuzzy search matches.
+            </p>
+            <pre class="mt-5 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[11.5px] leading-relaxed overflow-x-auto"><span class="text-faint">$</span> mcp-vault add supabase
+Label: <span class="text-white">client-acme</span>
+Description: <span class="text-white">Acme Corp production</span>
+PAT: <span class="text-white">****************</span>
+<span class="text-emerald-400">✓ Added.</span></pre>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-ink-900/60 p-7">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-faint">02 — Wire</span>
+              <span class="font-mono text-[10.5px] text-faint">MCP</span>
+            </div>
+            <h3 class="mt-4 text-lg font-semibold tracking-tight">Point Claude at the wrappers</h3>
+            <p class="mt-2 text-[14px] text-muted leading-relaxed">
+              Add four lines to <code class="font-mono text-[12.5px] text-white/85">claude_desktop_config.json</code>. mcp-vault becomes both the control plane and every per-service wrapper.
+            </p>
+            <pre class="mt-5 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[11.5px] leading-relaxed overflow-x-auto"><span class="text-faint">"mcpServers":</span> {
+  <span class="text-accent-500">"vault"</span>: { <span class="text-faint">"command"</span>: <span class="text-white">"mcp-vault"</span>,
+            <span class="text-faint">"args"</span>: [<span class="text-white">"server"</span>] },
+  <span class="text-accent-500">"supabase"</span>: { <span class="text-faint">"args"</span>: [<span class="text-white">"wrap"</span>, <span class="text-white">"supabase"</span>] },
+  <span class="text-accent-500">"github"</span>:   { <span class="text-faint">"args"</span>: [<span class="text-white">"wrap"</span>, <span class="text-white">"github"</span>] }
+}</pre>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-ink-900/60 p-7">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-faint">03 — Talk</span>
+              <span class="font-mono text-[10.5px] text-faint">Claude</span>
+            </div>
+            <h3 class="mt-4 text-lg font-semibold tracking-tight">Ask in plain language</h3>
+            <p class="mt-2 text-[14px] text-muted leading-relaxed">
+              Claude finds the right account, activates it, and runs the tool. Each wrapper re-reads the active label on every call — switching is instant.
+            </p>
+            <pre class="mt-5 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[11.5px] leading-relaxed overflow-x-auto"><span class="text-faint">›</span> "Switch to my personal Supabase
+   and list the recent migrations"
+
+<span class="text-accent-500">activate_account</span>(personal) ✓
+<span class="text-accent-500">supabase_list_migrations</span>()
+<span class="text-faint">→ 4 migrations on personal/main</span></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== FEATURES GRID ============== -->
+    <section class="border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div class="max-w-2xl">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">
+            What's in the box
+          </p>
+          <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+            Built for agents that actually do work.
+          </h2>
+        </div>
+
+        <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-white/5 border hairline-strong rounded-xl overflow-hidden">
+          <!-- Feature -->
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 7l7-4 7 4-7 4-7-4z" stroke-linejoin="round" />
+                <path d="M3 13l7 4 7-4" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">Many accounts per service</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Personal Supabase, three client Supabases, a demo org — all live side by side. Labels stay alphanumeric; descriptions feed fuzzy search.
+            </p>
+          </div>
+
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 10a6 6 0 1112 0 6 6 0 01-12 0z" />
+                <path d="M10 7v3l2 1.5" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">Switch in real time</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Wrappers re-read the active label on every tool call. Switching from <code class="font-mono text-[12.5px] text-white/85">personal</code> → <code class="font-mono text-[12.5px] text-white/85">client-acme</code> is one MCP call away. Zero restart.
+            </p>
+          </div>
+
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 5h14M3 10h14M3 15h14" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">Fuzzy find by description</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Write project or client names into descriptions. Claude calls <code class="font-mono text-[12.5px] text-white/85">find_account("supabase", "Acme")</code> and gets back the right label.
+            </p>
+          </div>
+
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="4" y="8" width="12" height="9" rx="1.5" />
+                <path d="M7 8V6a3 3 0 016 0v2" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">AES-256-GCM at rest</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Argon2id KDF (m=64 MiB, t=3, p=1) from your master password. Vault file lives at <code class="font-mono text-[12.5px] text-white/85">~/.mcp-vault/vault.enc</code>. The password never touches disk.
+            </p>
+          </div>
+
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 10l4 4 10-10" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">Unlock once, stay unlocked</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Derived session key cached in OS keychain (DPAPI on Windows, Keychain on macOS, Secret Service on Linux). Survives reboots until you explicitly <code class="font-mono text-[12.5px] text-white/85">lock</code>.
+            </p>
+          </div>
+
+          <div class="bg-ink-900/60 p-6">
+            <div class="h-9 w-9 rounded-md bg-ink-800 hairline border flex items-center justify-center">
+              <svg viewBox="0 0 20 20" class="h-4 w-4 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 4h12v12H4z" />
+                <path d="M4 8h12M8 4v12" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-base font-semibold tracking-tight">Append-only audit log</h3>
+            <p class="mt-1.5 text-[14px] text-muted leading-relaxed">
+              Records which account was used per request, never the credential. So you can answer "what did the agent touch on Tuesday?" without exposing keys.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== SECURITY ============== -->
+    <section id="security" class="border-b hairline relative overflow-hidden">
+      <div class="absolute inset-0 -z-10 grid-bg opacity-50"></div>
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28 grid md:grid-cols-2 gap-12 items-start">
+        <div>
+          <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">
+            Security model
+          </p>
+          <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+            Your credentials don't go to the model.
+          </h2>
+          <p class="mt-5 text-muted leading-relaxed">
+            Wrappers decrypt the active credential in-process, call the upstream API,
+            and return the <em>result</em> to Claude. The PAT never crosses the MCP
+            wire. Stripe's wrapper is read-only by design — no <code class="font-mono text-[13px] text-white/85">create_charge</code>, no <code class="font-mono text-[13px] text-white/85">refund</code>.
+          </p>
+
+          <div class="mt-8 space-y-4">
+            <div class="flex gap-4">
+              <div class="shrink-0 h-8 w-8 rounded-md bg-ink-800 hairline border flex items-center justify-center font-mono text-[11px] text-accent-500">01</div>
+              <div>
+                <h4 class="text-[15px] font-medium tracking-tight">AES-256-GCM, Argon2id KDF</h4>
+                <p class="text-[13.5px] text-muted leading-relaxed">m=64 MiB, t=3, p=1. The vault file is meaningless without the master password.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="shrink-0 h-8 w-8 rounded-md bg-ink-800 hairline border flex items-center justify-center font-mono text-[11px] text-accent-500">02</div>
+              <div>
+                <h4 class="text-[15px] font-medium tracking-tight">Session key in OS keychain</h4>
+                <p class="text-[13.5px] text-muted leading-relaxed">Protected by your OS login. Lock at any time to invalidate it.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="shrink-0 h-8 w-8 rounded-md bg-ink-800 hairline border flex items-center justify-center font-mono text-[11px] text-accent-500">03</div>
+              <div>
+                <h4 class="text-[15px] font-medium tracking-tight">Credentials stay in the wrapper</h4>
+                <p class="text-[13.5px] text-muted leading-relaxed">Tools return API responses to Claude — never the bearer token itself.</p>
+              </div>
+            </div>
+            <div class="flex gap-4">
+              <div class="shrink-0 h-8 w-8 rounded-md bg-ink-800 hairline border flex items-center justify-center font-mono text-[11px] text-accent-500">04</div>
+              <div>
+                <h4 class="text-[15px] font-medium tracking-tight">Auditable by default</h4>
+                <p class="text-[13.5px] text-muted leading-relaxed">Append-only log of which label served which call. Easy to grep, easy to ship.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- File tree visual -->
+        <div class="rounded-xl gradient-border bg-ink-900/70 p-6 font-mono text-[12.5px] leading-relaxed">
+          <div class="text-[11px] uppercase tracking-wider text-faint mb-4">~/.mcp-vault/</div>
+          <div class="space-y-2.5">
+            <div class="flex items-start gap-3">
+              <span class="text-faint shrink-0">├──</span>
+              <div>
+                <span class="text-white">vault.enc</span>
+                <div class="text-[12px] text-faint mt-0.5 font-sans leading-snug">AES-256-GCM ciphertext, Argon2id-derived key</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-faint shrink-0">├──</span>
+              <div>
+                <span class="text-white">active.json</span>
+                <div class="text-[12px] text-faint mt-0.5 font-sans leading-snug">Plain JSON: only labels, no secrets</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-faint shrink-0">└──</span>
+              <div>
+                <span class="text-white">vault.log</span>
+                <div class="text-[12px] text-faint mt-0.5 font-sans leading-snug">Append-only audit trail of account use</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-6 border-t hairline">
+            <div class="text-[11px] uppercase tracking-wider text-faint mb-3">OS keychain</div>
+            <div class="flex items-start gap-3">
+              <span class="text-accent-500 shrink-0">●</span>
+              <div>
+                <span class="text-white">mcp-vault.session</span>
+                <div class="text-[12px] text-faint mt-0.5 font-sans leading-snug">DPAPI / Keychain / Secret Service. Cleared on <span class="text-white">lock</span>.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== SERVICES ============== -->
+    <section id="services" class="border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div class="max-w-2xl">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">
+            Wrappers
+          </p>
+          <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+            Four services on day one.
+          </h2>
+          <p class="mt-4 text-muted leading-relaxed">
+            Each wrapper exposes a small, opinionated set of tools that match the way
+            you actually use the API from a chat — not the full surface area.
+          </p>
+        </div>
+
+        <div class="mt-12 grid sm:grid-cols-2 gap-4">
+          <!-- Supabase -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-md bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-400" fill="currentColor"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold tracking-tight">Supabase</h3>
+                <p class="text-[12px] text-faint">Read-only project + SQL access</p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-1.5">
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_projects</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">run_sql</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_tables</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">get_logs</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_organizations</span>
+            </div>
+          </div>
+
+          <!-- GitHub -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-md bg-white/5 border hairline-strong flex items-center justify-center">
+                <svg viewBox="0 0 16 16" class="h-4 w-4 text-white" fill="currentColor"><path d="M8 0a8 8 0 00-2.53 15.59c.4.07.55-.17.55-.38v-1.34c-2.22.48-2.69-1.07-2.69-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.13 0 0 .67-.21 2.2.82a7.6 7.6 0 014 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.51.56.82 1.28.82 2.15 0 3.07-1.87 3.74-3.66 3.94.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 008 0z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold tracking-tight">GitHub</h3>
+                <p class="text-[12px] text-faint">Repos, issues, PRs, code search</p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-1.5">
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_repos</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">get_repo</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_issues</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">create_issue</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_pulls</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">get_file</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">search_code</span>
+            </div>
+          </div>
+
+          <!-- Vercel -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-md bg-white/5 border hairline-strong flex items-center justify-center">
+                <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 text-white" fill="currentColor"><path d="M12 2L2 20h20L12 2z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold tracking-tight">Vercel</h3>
+                <p class="text-[12px] text-faint">Projects, deployments, domains</p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-1.5">
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_projects</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_deployments</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">get_deployment</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_domains</span>
+            </div>
+          </div>
+
+          <!-- Stripe -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-md bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 text-violet-300" fill="currentColor"><path d="M13.479 9.883c-1.626-.602-2.512-1.066-2.512-1.764 0-.587.487-.926 1.348-.926 1.554 0 3.151.59 4.235 1.105l.629-3.851C16.328 4.045 14.667 3.5 12.345 3.5c-1.94 0-3.557.491-4.703 1.402-1.18.937-1.806 2.272-1.806 3.91 0 2.973 1.815 4.252 4.785 5.318 1.913.683 2.553 1.166 2.553 1.95 0 .763-.658 1.213-1.847 1.213-1.541 0-3.881-.736-5.408-1.674L5 19.532c1.296.732 3.71 1.476 6.21 1.476 2.052 0 3.762-.482 4.913-1.397 1.292-1.022 1.962-2.515 1.962-4.402 0-3.052-1.825-4.319-4.606-5.326z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-base font-semibold tracking-tight">Stripe <span class="ml-1 font-mono text-[10.5px] text-violet-300/80 uppercase tracking-wider">read-only</span></h3>
+                <p class="text-[12px] text-faint">Customers, charges, subscriptions</p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-1.5">
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_customers</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">retrieve_customer</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_charges</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">list_subscriptions</span>
+              <span class="font-mono text-[11.5px] px-2 py-0.5 rounded-md bg-ink-800 text-muted hairline border">retrieve</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 flex items-start gap-3 rounded-lg border hairline bg-ink-900/30 p-4 text-[13px] text-muted">
+          <svg viewBox="0 0 16 16" class="mt-0.5 h-4 w-4 shrink-0 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 5v3M8 11h.01" stroke-linecap="round" />
+          </svg>
+          <span>
+            <span class="text-white font-medium">Coming in v2:</span> OAuth services
+            (Gmail, Drive, Slack), 1Password / Bitwarden adapters, and project
+            "contexts" — switch Supabase + GitHub + Vercel + Stripe at once.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== INSTALL ============== -->
+    <section id="install" class="border-b hairline">
+      <div class="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div class="max-w-2xl">
+          <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">Install</p>
+          <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+            Up in under five minutes.
+          </h2>
+        </div>
+
+        <div class="mt-12 grid lg:grid-cols-3 gap-4">
+          <!-- 1 -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="font-mono text-[11px] text-faint uppercase tracking-wider">Step 1 — Install & init</div>
+            <pre class="mt-4 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[12px] leading-relaxed overflow-x-auto"><span class="text-faint">$</span> npm install -g mcp-vault
+<span class="text-faint">$</span> mcp-vault init
+<span class="text-faint">→</span> set master password
+<span class="text-emerald-400">✓</span> ~/.mcp-vault/vault.enc</pre>
+          </div>
+
+          <!-- 2 -->
+          <div class="rounded-xl border hairline-strong bg-ink-900/40 p-6">
+            <div class="font-mono text-[11px] text-faint uppercase tracking-wider">Step 2 — Add accounts</div>
+            <pre class="mt-4 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[12px] leading-relaxed overflow-x-auto"><span class="text-faint">$</span> mcp-vault add supabase
+<span class="text-faint">$</span> mcp-vault add github
+<span class="text-faint">$</span> mcp-vault add vercel
+<span class="text-faint">$</span> mcp-vault add stripe</pre>
+          </div>
+
+          <!-- 3 -->
+          <div class="rounded-xl gradient-border bg-ink-900/70 p-6 shadow-glow">
+            <div class="font-mono text-[11px] text-accent-500 uppercase tracking-wider">Step 3 — Wire to Claude Desktop</div>
+            <pre class="mt-4 rounded-lg border hairline bg-ink-950/70 p-3.5 font-mono text-[11.5px] leading-relaxed overflow-x-auto">{
+  <span class="text-accent-500">"mcpServers"</span>: {
+    <span class="text-accent-500">"vault"</span>: {
+      <span class="text-faint">"command"</span>: <span class="text-white">"mcp-vault"</span>,
+      <span class="text-faint">"args"</span>: [<span class="text-white">"server"</span>]
+    },
+    <span class="text-accent-500">"supabase"</span>: {
+      <span class="text-faint">"command"</span>: <span class="text-white">"mcp-vault"</span>,
+      <span class="text-faint">"args"</span>: [<span class="text-white">"wrap"</span>, <span class="text-white">"supabase"</span>]
+    }
+  }
+}</pre>
+            <p class="mt-3 text-[12.5px] text-faint">
+              <code class="font-mono text-[12px] text-white/85">%APPDATA%\Claude\claude_desktop_config.json</code> on Windows · <code class="font-mono text-[12px] text-white/85">~/Library/Application Support/Claude</code> on macOS.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== FAQ ============== -->
+    <section id="faq" class="border-b hairline">
+      <div class="mx-auto max-w-3xl px-6 py-20 md:py-28">
+        <p class="text-[11px] uppercase tracking-[0.2em] text-accent-500 font-mono">FAQ</p>
+        <h2 class="mt-3 text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
+          Questions worth answering.
+        </h2>
+
+        <div class="mt-10 divide-y divide-white/5 border-y hairline">
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">Does Claude ever see my actual tokens?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              No. Wrappers decrypt the active credential in their own process and call the upstream API. Claude only sees what the API returned — project lists, query results, deployments. The PAT never crosses the MCP wire.
+            </p>
+          </details>
+
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">What if my laptop is stolen?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              The vault file is AES-256-GCM with an Argon2id-derived key. The session key cached in the OS keychain is protected by your OS login (DPAPI on Windows, Keychain on macOS). Without your OS password, neither file is useful.
+            </p>
+          </details>
+
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">Do I have to re-enter my master password every day?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              No — the derived key is cached in your OS keychain across reboots. If you'd rather have it expire, run <code class="font-mono text-[13px] text-white/85">mcp-vault lock</code> before shutting down (or call <code class="font-mono text-[13px] text-white/85">lock_vault</code> through Claude).
+            </p>
+          </details>
+
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">Why is the Stripe wrapper read-only?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              Because money moves are not the kind of thing you want a chat interface to be one prompt away from. No <code class="font-mono text-[13px] text-white/85">create_charge</code>, no <code class="font-mono text-[13px] text-white/85">refund</code>, by design.
+            </p>
+          </details>
+
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">Can I add more services?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              v1 covers bearer-token / API-key auth: Supabase, GitHub, Vercel, Stripe. v2+ brings OAuth services (Gmail, Drive, Slack) with refresh logic, plus 1Password / Bitwarden adapters and multi-service "contexts."
+            </p>
+          </details>
+
+          <details class="group py-5">
+            <summary class="flex items-start justify-between gap-6 text-left">
+              <span class="text-[15.5px] font-medium tracking-tight">Is this hosted anywhere?</span>
+              <span class="chev mt-1 text-faint text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-[14.5px] text-muted leading-relaxed">
+              No. mcp-vault is local-first by design — there is no server, no account, no telemetry. The vault file lives on your machine; that's it.
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== CTA ============== -->
+    <section class="border-b hairline relative overflow-hidden">
+      <div class="absolute inset-0 -z-10 grid-bg opacity-60"></div>
+      <div class="mx-auto max-w-3xl px-6 py-24 md:py-32 text-center">
+        <h2 class="text-3xl md:text-5xl font-semibold tracking-tight leading-[1.05]">
+          Stop pasting tokens.<br />
+          <span class="text-faint">Start switching contexts.</span>
+        </h2>
+        <p class="mt-5 text-muted leading-relaxed max-w-xl mx-auto">
+          mcp-vault is open source, MIT-licensed, and runs entirely on your machine. Get it running in five minutes.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a
+            href="#install"
+            class="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-white text-ink-950 text-sm font-medium hover:bg-white/90 transition shadow-soft"
+          >
+            <span>Install mcp-vault</span>
+            <svg viewBox="0 0 12 12" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M4 2l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+          <a
+            href="https://github.com/"
+            class="inline-flex items-center gap-2 h-10 px-4 rounded-lg border hairline-strong bg-ink-900/60 text-sm text-muted hover:text-white hover:bg-white/5 transition"
+          >
+            <svg viewBox="0 0 16 16" class="h-3.5 w-3.5" fill="currentColor">
+              <path d="M8 0a8 8 0 00-2.53 15.59c.4.07.55-.17.55-.38v-1.34c-2.22.48-2.69-1.07-2.69-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.13 0 0 .67-.21 2.2.82a7.6 7.6 0 014 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.93.08 2.13.51.56.82 1.28.82 2.15 0 3.07-1.87 3.74-3.66 3.94.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 008 0z" />
+            </svg>
+            <span>Star on GitHub</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== FOOTER ============== -->
+    <footer class="bg-ink-950">
+      <div class="mx-auto max-w-6xl px-6 py-12 grid sm:grid-cols-2 md:grid-cols-4 gap-10 text-sm">
+        <div class="md:col-span-1">
+          <div class="flex items-center gap-2.5">
+            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-ink-800 hairline border">
+              <svg viewBox="0 0 20 20" class="h-3 w-3 text-accent-500" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M5 9V6.5a3.5 3.5 0 117 0V9" stroke-linecap="round" />
+                <rect x="3.5" y="9" width="10" height="7.5" rx="1.5" />
+              </svg>
+            </span>
+            <span class="font-semibold tracking-tight">mcp-vault</span>
+          </div>
+          <p class="mt-3 text-[13px] text-faint leading-relaxed max-w-xs">
+            Local, encrypted credential vault for AI agents. MIT-licensed.
+          </p>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.2em] text-faint font-mono">Product</div>
+          <ul class="mt-4 space-y-2.5 text-muted">
+            <li><a href="#how" class="hover:text-white transition">How it works</a></li>
+            <li><a href="#security" class="hover:text-white transition">Security</a></li>
+            <li><a href="#services" class="hover:text-white transition">Services</a></li>
+            <li><a href="#install" class="hover:text-white transition">Install</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.2em] text-faint font-mono">Resources</div>
+          <ul class="mt-4 space-y-2.5 text-muted">
+            <li><a href="#" class="hover:text-white transition">README</a></li>
+            <li><a href="#" class="hover:text-white transition">CLI reference</a></li>
+            <li><a href="#" class="hover:text-white transition">Architecture</a></li>
+            <li><a href="#faq" class="hover:text-white transition">FAQ</a></li>
+          </ul>
+        </div>
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.2em] text-faint font-mono">Repo</div>
+          <ul class="mt-4 space-y-2.5 text-muted">
+            <li><a href="#" class="hover:text-white transition">GitHub</a></li>
+            <li><a href="#" class="hover:text-white transition">Issues</a></li>
+            <li><a href="#" class="hover:text-white transition">Releases</a></li>
+            <li><a href="#" class="hover:text-white transition">License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t hairline">
+        <div class="mx-auto max-w-6xl px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px] text-faint">
+          <div>© 2026 mcp-vault — local-first, no telemetry.</div>
+          <div class="font-mono">v1.0 · macOS · Windows · Linux</div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

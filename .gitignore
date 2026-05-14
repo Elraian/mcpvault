@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build artifacts
+dist/
+.next/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+.claude/
+
+# Backups
+*.bak
+*.bak-*
+
+# Vault data must never be committed (lives in user home, but defense in depth)
+.mcp-vault/
+.mvault/
+vault.enc
+active.json

@@ -88,20 +88,20 @@ Same wrapper process. Zero restart between switches.
 | Session key (after unlock) | OS keyring (Windows Credential Manager / macOS Keychain / libsecret on Linux). Survives reboots so you don't re-type your password daily. |
 | Wrapper MCP processes | Read decrypted creds from keyring per request. Credentials never returned through MCP — only the API result is. |
 | Stripe wrapper | Read-only by design. No `create_charge`, no `refund`. |
-| Audit log | `~/.mvault/vault.log` records which account was used per request, never the credential. |
+| Audit log | `~/.mcpvault/vault.log` records which account was used per request, never the credential. |
 
 If you want stricter behavior (re-enter master password every boot), run `mcpvault lock` before shutdown, or call `lock_vault` through your agent.
 
 ## Files on disk
 
 ```
-~/.mvault/
+~/.mcpvault/
 ├── vault.enc         # AES-256-GCM, Argon2id-derived key
 ├── active.json       # plain JSON, only labels — no secrets
 └── vault.log         # append-only audit log
 ```
 
-> The legacy path `~/.mcp-vault/` is also recognized for existing users.
+> The legacy paths `~/.mcp-vault/` and `~/.mvault/` are also recognized for existing users — auto-detected from disk.
 
 ## Architecture
 
@@ -114,8 +114,8 @@ Chat client (Claude Code / Desktop / Cursor)
    ├── spawns: mcpvault wrap vercel
    └── spawns: mcpvault wrap stripe
                     │
-                    ├── reads: ~/.mvault/active.json    (which label per service)
-                    └── reads: ~/.mvault/vault.enc      (encrypted creds)
+                    ├── reads: ~/.mcpvault/active.json    (which label per service)
+                    └── reads: ~/.mcpvault/vault.enc      (encrypted creds)
                                 │
                          decrypted with key from
                          OS keyring (cached at unlock)
@@ -147,10 +147,13 @@ Most MCP servers are locked to one account at startup. If you have 10 Supabase p
 
 ## Credits
 
-Built by **[AISIDE](https://github.com/Elraian)** — [@Elraian](https://github.com/Elraian).
-Marketing site: [mcpvault-website](https://github.com/Elraian/mcpvault-website) *(coming soon)*.
+Built by **[AISIDE](https://aiside.ee)** — [@Elraian](https://github.com/Elraian).
 
-If you find this useful, the cheapest way to say thanks is a star on [the repo](https://github.com/Elraian/mcpvault).
+- **Site:** <https://mcpvault.online>
+- **Source:** <https://github.com/Elraian/mcpvault>
+- **npm:** <https://www.npmjs.com/package/@elraian/mcpvault>
+
+If this saves you time, a star on the repo costs you nothing and helps a lot.
 
 ## License
 

@@ -6,7 +6,7 @@ import { logEvent } from "../log.js";
 export class NoActiveAccountError extends Error {
   constructor(service: Service) {
     super(
-      `No active ${service} account. Run \`activate_account\` (in the vault MCP) to pick one, or run \`mcp-vault list ${service}\` to see what you have.`,
+      `No active ${service} account. Run \`activate_account\` (in the vault MCP) to pick one, or run \`mcpvault list ${service}\` to see what you have.`,
     );
     this.name = "NoActiveAccountError";
   }

@@ -31,7 +31,7 @@ async function stripeGet(path: string, secretKey: string, query?: Record<string,
 }
 
 export async function startStripeWrapper(): Promise<void> {
-  const server = new McpServer({ name: "mcp-vault-stripe", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault-stripe", version: "0.1.0" });
 
   server.registerTool(
     "stripe_list_customers",

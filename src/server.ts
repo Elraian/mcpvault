@@ -24,7 +24,7 @@ async function withVault<T>(fn: (v: Awaited<ReturnType<typeof openWithCachedKey>
 }
 
 export async function startVaultServer(): Promise<void> {
-  const server = new McpServer({ name: "mcp-vault", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault", version: "0.1.0" });
 
   server.registerTool(
     "unlock_vault",

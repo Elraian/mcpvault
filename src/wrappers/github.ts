@@ -9,12 +9,12 @@ function ghHeaders(): Record<string, string> {
   return {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "mcp-vault",
+    "User-Agent": "mcpvault",
   };
 }
 
 export async function startGithubWrapper(): Promise<void> {
-  const server = new McpServer({ name: "mcp-vault-github", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault-github", version: "0.1.0" });
 
   server.registerTool(
     "github_list_repos",
@@ -142,6 +142,101 @@ export async function startGithubWrapper(): Promise<void> {
         headers: ghHeaders(),
       });
       return jsonResult({ active_label: account.label, results });
+    }),
+  );
+
+  server.registerTool(
+    "github_get_authenticated_user",
+    {
+      description: "Get info about the authenticated GitHub user (login, name, scopes). Useful for sanity-checking which account is active.",
+      inputSchema: {},
+    },
+    withActive("github", "get_user", async (_a, account) => {
+      const pat = (account.credentials as any).pat as string;
+      const user = await apiCall("GET", `${API}/user`, { auth: `Bearer ${pat}`, headers: ghHeaders() });
+      return jsonResult({ active_label: account.label, user });
+    }),
+  );
+
+  server.registerTool(
+    "github_list_branches",
+    {
+      description: "List branches on a repository.",
+      inputSchema: { owner: z.string(), repo: z.string(), per_page: z.number().int().min(1).max(100).default(30) },
+    },
+    withActive("github", "list_branches", async ({ owner, repo, per_page }, account) => {
+      const pat = (account.credentials as any).pat as string;
+      const branches = await apiCall("GET", `${API}/repos/${owner}/${repo}/branches?per_page=${per_page}`, {
+        auth: `Bearer ${pat}`,
+        headers: ghHeaders(),
+      });
+      return jsonResult({ active_label: account.label, branches });
+    }),
+  );
+
+  server.registerTool(
+    "github_create_pull_request",
+    {
+      description: "Open a pull request on a repository.",
+      inputSchema: {
+        owner: z.string(),
+        repo: z.string(),
+        title: z.string().min(1),
+        head: z.string().min(1).describe("Source branch (e.g. 'feature-x')"),
+        base: z.string().min(1).describe("Target branch (e.g. 'main')"),
+        body: z.string().optional(),
+        draft: z.boolean().default(false),
+      },
+    },
+    withActive("github", "create_pr", async ({ owner, repo, title, head, base, body, draft }, account) => {
+      const pat = (account.credentials as any).pat as string;
+      const pr = await apiCall("POST", `${API}/repos/${owner}/${repo}/pulls`, {
+        auth: `Bearer ${pat}`,
+        headers: ghHeaders(),
+        body: { title, head, base, body, draft },
+      });
+      return jsonResult({ active_label: account.label, pull_request: pr });
+    }),
+  );
+
+  server.registerTool(
+    "github_list_workflow_runs",
+    {
+      description: "List recent GitHub Actions workflow runs for a repository. Use to check CI status.",
+      inputSchema: {
+        owner: z.string(),
+        repo: z.string(),
+        per_page: z.number().int().min(1).max(100).default(20),
+        branch: z.string().optional(),
+        status: z.enum(["queued", "in_progress", "completed", "success", "failure", "cancelled"]).optional(),
+      },
+    },
+    withActive("github", "list_runs", async ({ owner, repo, per_page, branch, status }, account) => {
+      const pat = (account.credentials as any).pat as string;
+      const qs = new URLSearchParams({ per_page: String(per_page) });
+      if (branch) qs.set("branch", branch);
+      if (status) qs.set("status", status);
+      const runs = await apiCall("GET", `${API}/repos/${owner}/${repo}/actions/runs?${qs}`, {
+        auth: `Bearer ${pat}`,
+        headers: ghHeaders(),
+      });
+      return jsonResult({ active_label: account.label, runs });
+    }),
+  );
+
+  server.registerTool(
+    "github_get_workflow_run",
+    {
+      description: "Get details for a single GitHub Actions workflow run, including conclusion + job summary.",
+      inputSchema: { owner: z.string(), repo: z.string(), run_id: z.number().int() },
+    },
+    withActive("github", "get_run", async ({ owner, repo, run_id }, account) => {
+      const pat = (account.credentials as any).pat as string;
+      const run = await apiCall("GET", `${API}/repos/${owner}/${repo}/actions/runs/${run_id}`, {
+        auth: `Bearer ${pat}`,
+        headers: ghHeaders(),
+      });
+      return jsonResult({ active_label: account.label, run });
     }),
   );
 

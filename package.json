@@ -1,5 +1,5 @@
 {
-  "name": "mcpvault",
+  "name": "@elraian/mcpvault",
   "version": "0.1.0",
   "description": "Local MCP credential vault — multi-account credentials for AI agents (Claude, Cursor, Codex, custom MCP clients).",
   "type": "module",

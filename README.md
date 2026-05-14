@@ -9,10 +9,11 @@ The agent calls a vault tool, the right credentials are loaded, the request exec
 ## Install
 
 ```sh
-npm i -g mcpvault
+npm i -g @elraian/mcpvault
 ```
 
 > Requires Node 20+. Works on Windows, macOS, Linux.
+> The CLI command after install is just `mcpvault` (also aliased as `mvault` and `mcp-vault`).
 
 ## Setup in 3 commands
 

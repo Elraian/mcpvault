@@ -40,7 +40,7 @@ export const awsAdapter: ProxyAdapter = {
   },
 
   spawnCmd: "npx",
-  spawnArgs: ["-y", "aws-mcp-server"],
+  spawnArgs: ["-y", "@yawlabs/aws-mcp"],
   authMapping: (creds) => {
     const env: Record<string, string> = {
       AWS_ACCESS_KEY_ID: String(creds.access_key_id),

@@ -12,6 +12,12 @@ import { resendAdapter } from "./resend.js";
 import { figmaAdapter } from "./figma.js";
 import { airtableAdapter } from "./airtable.js";
 import { datadogAdapter } from "./datadog.js";
+import { gitlabAdapter } from "./gitlab.js";
+import { mongodbAdapter } from "./mongodb.js";
+import { discordAdapter } from "./discord.js";
+import { hubspotAdapter } from "./hubspot.js";
+import { mixpanelAdapter } from "./mixpanel.js";
+import { openaiAdapter } from "./openai.js";
 
 /**
  * Registry of proxy adapters keyed by service id. New services = one file under
@@ -31,6 +37,12 @@ export const PROXY_ADAPTERS: Record<string, ProxyAdapter> = {
   figma: figmaAdapter,
   airtable: airtableAdapter,
   datadog: datadogAdapter,
+  gitlab: gitlabAdapter,
+  mongodb: mongodbAdapter,
+  discord: discordAdapter,
+  hubspot: hubspotAdapter,
+  mixpanel: mixpanelAdapter,
+  openai: openaiAdapter,
 };
 
 export const PROXY_SERVICES = Object.keys(PROXY_ADAPTERS) as Array<keyof typeof PROXY_ADAPTERS>;

@@ -20,6 +20,12 @@ export const ServiceSchema = z.enum([
   "figma",
   "airtable",
   "datadog",
+  "gitlab",
+  "mongodb",
+  "discord",
+  "hubspot",
+  "mixpanel",
+  "openai",
 ]);
 export type Service = z.infer<typeof ServiceSchema>;
 
@@ -114,6 +120,38 @@ export const DatadogCredsSchema = z.object({
   site: z.string().optional(),
 });
 
+export const GitLabCredsSchema = z.object({
+  personal_access_token: z.string().min(1),
+  host: z.string().url().optional(),
+});
+
+export const MongoDBCredsSchema = z.object({
+  connection_string: z
+    .string()
+    .min(1)
+    .regex(/^mongodb(\+srv)?:\/\//i, "must start with mongodb:// or mongodb+srv://"),
+});
+
+export const DiscordCredsSchema = z.object({
+  bot_token: z.string().min(1),
+  guild_id: z.string().optional(),
+});
+
+export const HubSpotCredsSchema = z.object({
+  access_token: z.string().min(1),
+});
+
+export const MixpanelCredsSchema = z.object({
+  service_account_username: z.string().min(1),
+  service_account_secret: z.string().min(1),
+  project_id: z.string().min(1),
+});
+
+export const OpenAICredsSchema = z.object({
+  api_key: z.string().min(1),
+  organization: z.string().optional(),
+});
+
 export const CredentialsByService = {
   supabase: SupabaseCredsSchema,
   github: GitHubCredsSchema,
@@ -132,6 +170,12 @@ export const CredentialsByService = {
   figma: FigmaCredsSchema,
   airtable: AirtableCredsSchema,
   datadog: DatadogCredsSchema,
+  gitlab: GitLabCredsSchema,
+  mongodb: MongoDBCredsSchema,
+  discord: DiscordCredsSchema,
+  hubspot: HubSpotCredsSchema,
+  mixpanel: MixpanelCredsSchema,
+  openai: OpenAICredsSchema,
 } as const;
 
 // ─── Account / vault data ────────────────────────────────────────────────────

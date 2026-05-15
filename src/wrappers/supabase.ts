@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiCall, jsonResult, withActive } from "./common.js";
+import { VERSION } from "../version.js";
 
 const API = "https://api.supabase.com/v1";
 
@@ -16,7 +17,7 @@ function bearer(account: any): string {
 }
 
 export async function startSupabaseWrapper(): Promise<void> {
-  const server = new McpServer({ name: "mcpvault-supabase", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault-supabase", version: VERSION });
 
   // ─── Org / Project lookups ────────────────────────────────────────────────
 

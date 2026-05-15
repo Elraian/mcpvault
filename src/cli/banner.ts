@@ -3,6 +3,7 @@ import { openWithCachedKey } from "../session.js";
 import { readActive } from "../active.js";
 import { vaultFileExists } from "../vault.js";
 import { VAULT_DIR } from "../paths.js";
+import { VERSION } from "../version.js";
 
 // Brand colors lifted from landing-next/app/globals.css (true-color ANSI).
 //   acid green #bef264 — primary accent
@@ -104,7 +105,7 @@ function statusLines(s: StatusSnapshot): string[] {
 }
 
 const TAGLINE = "Local credential vault for AI agents";
-const META = "v0.1.0  ·  by AISIDE  ·  github.com/Elraian/mcpvault";
+const META = `v${VERSION}  ·  by AISIDE  ·  github.com/Elraian/mcpvault`;
 
 const SUGGESTIONS_INIT: string[] = [
   `${acid("mcpvault init")}                  create the vault`,

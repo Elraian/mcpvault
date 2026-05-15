@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { jsonResult, withActive } from "./common.js";
+import { VERSION } from "../version.js";
 
 const API = "https://api.stripe.com/v1";
 
@@ -31,7 +32,7 @@ async function stripeGet(path: string, secretKey: string, query?: Record<string,
 }
 
 export async function startStripeWrapper(): Promise<void> {
-  const server = new McpServer({ name: "mcpvault-stripe", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault-stripe", version: VERSION });
 
   server.registerTool(
     "stripe_list_customers",

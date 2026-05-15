@@ -6,6 +6,7 @@ import { persistVault } from "./vault.js";
 import { CredentialsByService, ServiceSchema, type Service, type Account } from "./schema.js";
 import { setActive, readActive, getActiveLabel, clearActive } from "./active.js";
 import { logEvent } from "./log.js";
+import { VERSION } from "./version.js";
 
 function text(s: string) {
   return { content: [{ type: "text" as const, text: s }] };
@@ -24,7 +25,7 @@ async function withVault<T>(fn: (v: Awaited<ReturnType<typeof openWithCachedKey>
 }
 
 export async function startVaultServer(): Promise<void> {
-  const server = new McpServer({ name: "mcpvault", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault", version: VERSION });
 
   server.registerTool(
     "unlock_vault",

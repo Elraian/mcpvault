@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { VERSION } from "./version.js";
 
 const program = new Command();
 
 program
   .name("mcpvault")
   .description("Local MCP credential vault — multi-account credentials for AI agents")
-  .version("0.1.0");
+  .version(VERSION);
 
 // `mcpvault` alone → branded welcome with status snapshot.
 // `mcpvault --help` / `mcpvault <cmd> --help` still use commander's text help.
@@ -112,6 +113,14 @@ program
   .action(async () => {
     const { cmdDoctor } = await import("./cli/doctor.js");
     await cmdDoctor();
+  });
+
+program
+  .command("upgrade")
+  .description("Check npm for a newer mcpvault and install it")
+  .action(async () => {
+    const { cmdUpgrade } = await import("./cli/upgrade.js");
+    await cmdUpgrade();
   });
 
 // ─── MCP servers (spawned by chat clients — not for humans) ─────────────────────

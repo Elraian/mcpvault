@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiCall, jsonResult, withActive } from "./common.js";
+import { VERSION } from "../version.js";
 
 const API = "https://api.github.com";
 
@@ -14,7 +15,7 @@ function ghHeaders(): Record<string, string> {
 }
 
 export async function startGithubWrapper(): Promise<void> {
-  const server = new McpServer({ name: "mcpvault-github", version: "0.1.0" });
+  const server = new McpServer({ name: "mcpvault-github", version: VERSION });
 
   server.registerTool(
     "github_list_repos",

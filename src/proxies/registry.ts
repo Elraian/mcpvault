@@ -2,15 +2,25 @@ import type { ProxyAdapter } from "./types.js";
 import { notionAdapter } from "./notion.js";
 import { linearAdapter } from "./linear.js";
 import { postgresAdapter } from "./postgres.js";
+import { posthogAdapter } from "./posthog.js";
+import { slackAdapter } from "./slack.js";
+import { cloudflareAdapter } from "./cloudflare.js";
+import { sentryAdapter } from "./sentry.js";
+import { braveSearchAdapter } from "./brave.js";
 
 /**
  * Registry of proxy adapters keyed by service id. New services = one file under
- * src/proxies/ + one entry here.
+ * src/proxies/ + one entry here + one entry in ServiceSchema (schema.ts).
  */
 export const PROXY_ADAPTERS: Record<string, ProxyAdapter> = {
   notion: notionAdapter,
   linear: linearAdapter,
   postgres: postgresAdapter,
+  posthog: posthogAdapter,
+  slack: slackAdapter,
+  cloudflare: cloudflareAdapter,
+  sentry: sentryAdapter,
+  brave: braveSearchAdapter,
 };
 
 export const PROXY_SERVICES = Object.keys(PROXY_ADAPTERS) as Array<keyof typeof PROXY_ADAPTERS>;

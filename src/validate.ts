@@ -126,11 +126,16 @@ export async function validateCredentials(service: Service, credentials: Record<
     // Proxy services delegate to their adapter's validator
     case "notion":
     case "linear":
-    case "postgres": {
+    case "postgres":
+    case "posthog":
+    case "slack":
+    case "cloudflare":
+    case "sentry":
+    case "brave": {
       const { PROXY_ADAPTERS } = await import("./proxies/registry.js");
       const adapter = PROXY_ADAPTERS[service];
       if (adapter?.validate) return adapter.validate(credentials);
-      return { ok: true, identity: service }; // adapter without validator = trust + move on
+      return { ok: true, identity: service };
     }
   }
 }

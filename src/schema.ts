@@ -10,6 +10,11 @@ export const ServiceSchema = z.enum([
   "notion",
   "linear",
   "postgres",
+  "posthog",
+  "slack",
+  "cloudflare",
+  "sentry",
+  "brave",
 ]);
 export type Service = z.infer<typeof ServiceSchema>;
 
@@ -53,6 +58,32 @@ export const PostgresCredsSchema = z.object({
     .regex(/^postgres(ql)?:\/\//i, "must start with postgres:// or postgresql://"),
 });
 
+export const PostHogCredsSchema = z.object({
+  personal_api_key: z.string().min(1),
+  project_id: z.string().min(1),
+  host: z.string().url().optional(),
+});
+
+export const SlackCredsSchema = z.object({
+  bot_token: z.string().min(1),
+  team_id: z.string().optional(),
+});
+
+export const CloudflareCredsSchema = z.object({
+  api_token: z.string().min(1),
+  account_id: z.string().optional(),
+});
+
+export const SentryCredsSchema = z.object({
+  auth_token: z.string().min(1),
+  org_slug: z.string().min(1),
+  host: z.string().url().optional(),
+});
+
+export const BraveCredsSchema = z.object({
+  api_key: z.string().min(1),
+});
+
 export const CredentialsByService = {
   supabase: SupabaseCredsSchema,
   github: GitHubCredsSchema,
@@ -61,6 +92,11 @@ export const CredentialsByService = {
   notion: NotionCredsSchema,
   linear: LinearCredsSchema,
   postgres: PostgresCredsSchema,
+  posthog: PostHogCredsSchema,
+  slack: SlackCredsSchema,
+  cloudflare: CloudflareCredsSchema,
+  sentry: SentryCredsSchema,
+  brave: BraveCredsSchema,
 } as const;
 
 // ─── Account / vault data ────────────────────────────────────────────────────

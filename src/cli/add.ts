@@ -16,7 +16,9 @@ interface CredField {
   default?: string;
 }
 
-const CRED_FIELDS: Record<Service, CredField[]> = {
+import { PROXY_ADAPTERS, isProxyService } from "../proxies/registry.js";
+
+const FIRST_PARTY_CRED_FIELDS: Partial<Record<Service, CredField[]>> = {
   supabase: [
     { key: "pat", prompt: "Supabase Personal Access Token (sbp_...)", secret: true },
     { key: "default_project_ref", prompt: "Default project ref (20-char id from project URL)", optional: true },
@@ -36,7 +38,7 @@ const CRED_FIELDS: Record<Service, CredField[]> = {
   ],
 };
 
-const TOKEN_URLS: Record<Service, { url: string; hint: string }> = {
+const FIRST_PARTY_TOKEN_URLS: Partial<Record<Service, { url: string; hint: string }>> = {
   supabase: {
     url: "https://supabase.com/dashboard/account/tokens",
     hint: "Click 'Generate new token'. Token is shown only once — copy it before closing.",
@@ -55,9 +57,29 @@ const TOKEN_URLS: Record<Service, { url: string; hint: string }> = {
   },
 };
 
+function fieldsFor(service: Service): CredField[] {
+  if (isProxyService(service)) {
+    return PROXY_ADAPTERS[service].credentialFields.map((f) => ({
+      key: f.key,
+      prompt: f.prompt,
+      secret: f.secret,
+      optional: f.optional,
+    }));
+  }
+  return FIRST_PARTY_CRED_FIELDS[service] ?? [];
+}
+
+function tokenInfoFor(service: Service): { url: string; hint: string } {
+  if (isProxyService(service)) {
+    const a = PROXY_ADAPTERS[service];
+    return { url: a.tokenUrl, hint: a.hint };
+  }
+  return FIRST_PARTY_TOKEN_URLS[service] ?? { url: "", hint: "" };
+}
+
 async function collectCreds(service: Service): Promise<Record<string, string | undefined>> {
   const out: Record<string, string | undefined> = {};
-  for (const f of CRED_FIELDS[service]) {
+  for (const f of fieldsFor(service)) {
     while (true) {
       let v: string | undefined;
       if (f.secret) {
@@ -87,7 +109,7 @@ export async function cmdAdd(serviceArg: string): Promise<void> {
   intro(c.bgCyan(c.black(` mcpvault add ${service} `)));
 
   const vault = await openWithCachedKey();
-  const tokenInfo = TOKEN_URLS[service];
+  const tokenInfo = tokenInfoFor(service);
 
   note(`Get a token at:\n${c.cyan(tokenInfo.url)}\n\n${c.dim(tokenInfo.hint)}`, "Where to get a token");
   const wantsBrowser = await confirm("Open token page in your browser?", false);

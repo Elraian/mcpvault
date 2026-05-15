@@ -224,13 +224,19 @@ export async function cmdSetup(opts: SetupOptions = {}): Promise<void> {
   intro(c.bgCyan(c.black(" mcpvault setup ")));
 
   const entry = resolveEntry();
+  const { PROXY_SERVICES } = await import("../proxies/registry.js");
   const entries: Record<string, ServerEntry> = {
     vault: { command: "node", args: [entry, "server"] },
+    // First-party
     "vault-supabase": { command: "node", args: [entry, "wrap", "supabase"] },
     "vault-github": { command: "node", args: [entry, "wrap", "github"] },
     "vault-vercel": { command: "node", args: [entry, "wrap", "vercel"] },
     "vault-stripe": { command: "node", args: [entry, "wrap", "stripe"] },
   };
+  // Proxy services
+  for (const svc of PROXY_SERVICES) {
+    entries[`vault-${svc}`] = { command: "node", args: [entry, "wrap", svc] };
+  }
 
   // --config <path> escape hatch: patch any arbitrary config file the user points us at.
   if (opts.configPath) {

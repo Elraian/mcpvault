@@ -13,7 +13,9 @@ interface CredField {
   optional?: boolean;
 }
 
-const CRED_FIELDS: Record<Service, CredField[]> = {
+import { PROXY_ADAPTERS, isProxyService } from "../proxies/registry.js";
+
+const FIRST_PARTY_CRED_FIELDS: Partial<Record<Service, CredField[]>> = {
   supabase: [
     { key: "pat", prompt: "Supabase PAT (sbp_...)", secret: true },
     { key: "default_project_ref", prompt: "Default project ref", optional: true },
@@ -32,6 +34,18 @@ const CRED_FIELDS: Record<Service, CredField[]> = {
     { key: "mode", prompt: "Mode (test|live)" },
   ],
 };
+
+function fieldsFor(service: Service): CredField[] {
+  if (isProxyService(service)) {
+    return PROXY_ADAPTERS[service].credentialFields.map((f) => ({
+      key: f.key,
+      prompt: f.prompt,
+      secret: f.secret,
+      optional: f.optional,
+    }));
+  }
+  return FIRST_PARTY_CRED_FIELDS[service] ?? [];
+}
 
 export async function cmdUpdate(serviceArg: string, label: string): Promise<void> {
   const service = ServiceSchema.parse(serviceArg) as Service;
@@ -63,7 +77,7 @@ export async function cmdUpdate(serviceArg: string, label: string): Promise<void
   if (picks.includes("credentials")) {
     log.info("Leave blank to keep current value.");
     const merged: Record<string, unknown> = { ...existing.credentials };
-    for (const f of CRED_FIELDS[service]) {
+    for (const f of fieldsFor(service)) {
       const v = f.secret ? await askPassword(`${f.prompt} (blank=keep)`) : await askOptional(`${f.prompt} (blank=keep)`);
       const value = (v ?? "").trim();
       if (!value) continue;

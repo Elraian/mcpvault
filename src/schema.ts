@@ -1,7 +1,19 @@
 import { z } from "zod";
 
-export const ServiceSchema = z.enum(["supabase", "github", "vercel", "stripe"]);
+export const ServiceSchema = z.enum([
+  // First-party (hand-written wrappers)
+  "supabase",
+  "github",
+  "vercel",
+  "stripe",
+  // Proxied (spawn community MCP server with creds injected)
+  "notion",
+  "linear",
+  "postgres",
+]);
 export type Service = z.infer<typeof ServiceSchema>;
+
+// ─── First-party credential schemas ──────────────────────────────────────────
 
 export const SupabaseCredsSchema = z.object({
   pat: z.string().min(1),
@@ -24,12 +36,34 @@ export const StripeCredsSchema = z.object({
   mode: z.enum(["test", "live"]).default("test"),
 });
 
+// ─── Proxied service credential schemas ──────────────────────────────────────
+
+export const NotionCredsSchema = z.object({
+  api_key: z.string().min(1),
+});
+
+export const LinearCredsSchema = z.object({
+  api_key: z.string().min(1),
+});
+
+export const PostgresCredsSchema = z.object({
+  connection_string: z
+    .string()
+    .min(1)
+    .regex(/^postgres(ql)?:\/\//i, "must start with postgres:// or postgresql://"),
+});
+
 export const CredentialsByService = {
   supabase: SupabaseCredsSchema,
   github: GitHubCredsSchema,
   vercel: VercelCredsSchema,
   stripe: StripeCredsSchema,
+  notion: NotionCredsSchema,
+  linear: LinearCredsSchema,
+  postgres: PostgresCredsSchema,
 } as const;
+
+// ─── Account / vault data ────────────────────────────────────────────────────
 
 export const AccountSchema = z.object({
   service: ServiceSchema,

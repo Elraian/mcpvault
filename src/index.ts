@@ -135,8 +135,9 @@ program
 
 program
   .command("wrap <service>")
-  .description("Start a service wrapper MCP server on stdio")
+  .description("Start a service wrapper MCP server on stdio (first-party or proxy)")
   .action(async (service: string) => {
+    // First-party (hand-written) wrappers
     switch (service) {
       case "supabase": {
         const { startSupabaseWrapper } = await import("./wrappers/supabase.js");
@@ -158,10 +159,21 @@ program
         await startStripeWrapper();
         return;
       }
-      default:
-        process.stderr.write(`unknown service "${service}". Valid: supabase, github, vercel, stripe.\n`);
-        process.exit(1);
     }
+    // Proxy services (spawn community MCP server with creds injected)
+    const { getAdapter, PROXY_SERVICES } = await import("./proxies/registry.js");
+    const adapter = getAdapter(service);
+    if (adapter) {
+      const { runProxy } = await import("./proxies/runner.js");
+      await runProxy(adapter);
+      return;
+    }
+    process.stderr.write(
+      `unknown service "${service}".\n` +
+        `  First-party: supabase, github, vercel, stripe\n` +
+        `  Proxy: ${PROXY_SERVICES.join(", ")}\n`,
+    );
+    process.exit(1);
   });
 
 program.parseAsync(process.argv).catch((err) => {

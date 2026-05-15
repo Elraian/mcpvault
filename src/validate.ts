@@ -123,5 +123,14 @@ export async function validateCredentials(service: Service, credentials: Record<
       return validateVercel(String(credentials.token), credentials.team_id ? String(credentials.team_id) : undefined);
     case "stripe":
       return validateStripe(String(credentials.secret_key));
+    // Proxy services delegate to their adapter's validator
+    case "notion":
+    case "linear":
+    case "postgres": {
+      const { PROXY_ADAPTERS } = await import("./proxies/registry.js");
+      const adapter = PROXY_ADAPTERS[service];
+      if (adapter?.validate) return adapter.validate(credentials);
+      return { ok: true, identity: service }; // adapter without validator = trust + move on
+    }
   }
 }

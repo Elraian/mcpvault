@@ -13,14 +13,23 @@ function resolveEntry(): string {
   return join(distDir, "index.js");
 }
 
+type ClientId = "claude-code" | "claude-desktop" | "cursor" | "cline" | "windsurf";
+
 interface ClientTarget {
-  id: "claude-code" | "claude-desktop" | "cursor";
+  id: ClientId;
   name: string;
   configPath: string;
   /** Some configs (Claude Desktop, Cursor) require the file to exist with valid JSON */
   ensure: boolean;
   /** Slug prefix for entry names within mcpServers */
   prefix: string;
+}
+
+/** Locate the user-data dir for a VS Code-flavored editor. Cline lives inside this. */
+function vscodeUserDir(home: string, pf: NodeJS.Platform, app: "Code" | "Code - Insiders"): string {
+  if (pf === "win32") return join(process.env.APPDATA ?? join(home, "AppData", "Roaming"), app, "User");
+  if (pf === "darwin") return join(home, "Library", "Application Support", app, "User");
+  return join(home, ".config", app, "User");
 }
 
 function detect(): ClientTarget[] {
@@ -54,11 +63,38 @@ function detect(): ClientTarget[] {
     prefix: "vault",
   });
 
-  // Cursor
+  // Cursor (user-level mcp config — not the VS-Code-style storage)
   targets.push({
     id: "cursor",
     name: "Cursor",
     configPath: join(home, ".cursor", "mcp.json"),
+    ensure: true,
+    prefix: "vault",
+  });
+
+  // Cline (VS Code extension by saoudrizwan)
+  // Lives in the stable VS Code user-data dir's globalStorage. If the user runs
+  // Cline inside a fork (Cursor, Code Insiders, Windsurf), they'd edit by hand —
+  // we can extend to detect those later.
+  targets.push({
+    id: "cline",
+    name: "Cline (VS Code)",
+    configPath: join(
+      vscodeUserDir(home, pf, "Code"),
+      "globalStorage",
+      "saoudrizwan.claude-dev",
+      "settings",
+      "cline_mcp_settings.json",
+    ),
+    ensure: true,
+    prefix: "vault",
+  });
+
+  // Windsurf (Codeium) — same shape, simple home-relative path on all platforms
+  targets.push({
+    id: "windsurf",
+    name: "Windsurf",
+    configPath: join(home, ".codeium", "windsurf", "mcp_config.json"),
     ensure: true,
     prefix: "vault",
   });
@@ -151,7 +187,7 @@ export async function cmdSetup(): Promise<void> {
     "Detected chat clients",
   );
 
-  const picks = await pickMany<"claude-code" | "claude-desktop" | "cursor">(
+  const picks = await pickMany<ClientId>(
     "Which to wire up?",
     targetStatus.map((t) => ({
       value: t.id,
@@ -191,6 +227,8 @@ export async function cmdSetup(): Promise<void> {
     `${c.green("✓")} Setup complete. ${c.bold("Restart your chat client(s)")} to load the new tools.\n` +
       `  Claude Code:    type ${c.cyan("/restart")} or reopen the window\n` +
       `  Claude Desktop: fully quit (tray → Quit) and reopen\n` +
-      `  Cursor:         reload window (Ctrl+Shift+P → "Developer: Reload Window")`,
+      `  Cursor:         reload window (Ctrl+Shift+P → "Developer: Reload Window")\n` +
+      `  Cline:          reload VS Code window\n` +
+      `  Windsurf:       restart the app`,
   );
 }

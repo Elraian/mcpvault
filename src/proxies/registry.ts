@@ -7,6 +7,11 @@ import { slackAdapter } from "./slack.js";
 import { cloudflareAdapter } from "./cloudflare.js";
 import { sentryAdapter } from "./sentry.js";
 import { braveSearchAdapter } from "./brave.js";
+import { awsAdapter } from "./aws.js";
+import { resendAdapter } from "./resend.js";
+import { figmaAdapter } from "./figma.js";
+import { airtableAdapter } from "./airtable.js";
+import { datadogAdapter } from "./datadog.js";
 
 /**
  * Registry of proxy adapters keyed by service id. New services = one file under
@@ -21,6 +26,11 @@ export const PROXY_ADAPTERS: Record<string, ProxyAdapter> = {
   cloudflare: cloudflareAdapter,
   sentry: sentryAdapter,
   brave: braveSearchAdapter,
+  aws: awsAdapter,
+  resend: resendAdapter,
+  figma: figmaAdapter,
+  airtable: airtableAdapter,
+  datadog: datadogAdapter,
 };
 
 export const PROXY_SERVICES = Object.keys(PROXY_ADAPTERS) as Array<keyof typeof PROXY_ADAPTERS>;

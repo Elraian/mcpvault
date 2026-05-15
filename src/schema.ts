@@ -15,6 +15,11 @@ export const ServiceSchema = z.enum([
   "cloudflare",
   "sentry",
   "brave",
+  "aws",
+  "resend",
+  "figma",
+  "airtable",
+  "datadog",
 ]);
 export type Service = z.infer<typeof ServiceSchema>;
 
@@ -84,6 +89,31 @@ export const BraveCredsSchema = z.object({
   api_key: z.string().min(1),
 });
 
+export const AwsCredsSchema = z.object({
+  access_key_id: z.string().min(1),
+  secret_access_key: z.string().min(1),
+  region: z.string().min(1),
+  session_token: z.string().optional(),
+});
+
+export const ResendCredsSchema = z.object({
+  api_key: z.string().min(1),
+});
+
+export const FigmaCredsSchema = z.object({
+  access_token: z.string().min(1),
+});
+
+export const AirtableCredsSchema = z.object({
+  personal_access_token: z.string().min(1),
+});
+
+export const DatadogCredsSchema = z.object({
+  api_key: z.string().min(1),
+  app_key: z.string().min(1),
+  site: z.string().optional(),
+});
+
 export const CredentialsByService = {
   supabase: SupabaseCredsSchema,
   github: GitHubCredsSchema,
@@ -97,6 +127,11 @@ export const CredentialsByService = {
   cloudflare: CloudflareCredsSchema,
   sentry: SentryCredsSchema,
   brave: BraveCredsSchema,
+  aws: AwsCredsSchema,
+  resend: ResendCredsSchema,
+  figma: FigmaCredsSchema,
+  airtable: AirtableCredsSchema,
+  datadog: DatadogCredsSchema,
 } as const;
 
 // ─── Account / vault data ────────────────────────────────────────────────────

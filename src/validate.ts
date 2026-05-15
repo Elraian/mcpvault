@@ -131,7 +131,12 @@ export async function validateCredentials(service: Service, credentials: Record<
     case "slack":
     case "cloudflare":
     case "sentry":
-    case "brave": {
+    case "brave":
+    case "aws":
+    case "resend":
+    case "figma":
+    case "airtable":
+    case "datadog": {
       const { PROXY_ADAPTERS } = await import("./proxies/registry.js");
       const adapter = PROXY_ADAPTERS[service];
       if (adapter?.validate) return adapter.validate(credentials);

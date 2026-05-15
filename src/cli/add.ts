@@ -6,6 +6,7 @@ import { CredentialsByService, ServiceSchema, type Service, type Account } from 
 import { ask, askOptional, askPassword, confirm, pick, spinner, redactForDisplay, c } from "./prompt.js";
 import { logEvent } from "../log.js";
 import { validateCredentials } from "../validate.js";
+import { getActiveLabel, setActive } from "../active.js";
 
 interface CredField {
   key: string;
@@ -172,10 +173,25 @@ export async function cmdAdd(serviceArg: string): Promise<void> {
     await persistVault(vault);
     await logEvent({ kind: "add", service, label: account.label });
 
+    // Auto-activate when no account is currently active for this service —
+    // covers the single-account-per-service flow cleanly. Multi-account users
+    // keep control: existing active stays put, they switch when they want.
+    const currentlyActive = await getActiveLabel(service);
+    let autoActivated = false;
+    if (!currentlyActive) {
+      await setActive(service, account.label);
+      await logEvent({ kind: "activate", service, label: account.label });
+      autoActivated = true;
+    }
+
+    const activateLine = autoActivated
+      ? `${c.green("●")} Auto-activated (no other ${service} account was active).`
+      : `Active stays on ${c.cyan(currentlyActive!)}. Switch with ${c.dim(`mcpvault activate ${service} ${account.label}`)}.`;
+
     outro(
       `${c.green("✓")} Saved ${c.bold(service)} account ${c.cyan(account.label)}.\n` +
-        `Activate: ${c.dim(`mcpvault activate ${service} ${account.label}`)}\n` +
-        `Or ask Claude: ${c.dim(`"switch to ${account.label}"`)}`,
+        `${activateLine}\n` +
+        `Or ask your agent: ${c.dim(`"switch to ${account.label}"`)}`,
     );
     return;
   }

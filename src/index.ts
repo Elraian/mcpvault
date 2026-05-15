@@ -27,10 +27,11 @@ program
 
 program
   .command("setup")
-  .description("Auto-wire vault into Claude Code / Claude Desktop / Cursor")
-  .action(async () => {
+  .description("Auto-wire vault into Claude Code / Claude Desktop / Cursor / Cline / Windsurf / Codex")
+  .option("--config <path>", "Target a specific config file (JSON or TOML) instead of auto-detecting")
+  .action(async (opts: { config?: string }) => {
     const { cmdSetup } = await import("./cli/setup.js");
-    await cmdSetup();
+    await cmdSetup({ configPath: opts.config });
   });
 
 program

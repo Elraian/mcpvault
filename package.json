@@ -1,6 +1,6 @@
 {
   "name": "@elraian/mcpvault",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Local MCP credential vault — multi-account credentials for AI agents (Claude, Cursor, Codex, custom MCP clients).",
   "type": "module",
   "bin": {
@@ -55,6 +55,7 @@
     "commander": "^12.1.0",
     "open": "^11.0.0",
     "picocolors": "^1.1.1",
+    "smol-toml": "^1.6.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

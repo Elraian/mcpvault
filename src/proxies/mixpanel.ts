@@ -5,49 +5,31 @@ export const mixpanelAdapter: ProxyAdapter = {
   displayName: "Mixpanel",
   tokenUrl: "https://mixpanel.com/settings/project",
   hint:
-    "Project settings → Service Accounts → create one. You'll get a username + secret. " +
-    "Note your Project ID (numeric, from the URL or project settings).",
+    "Project settings → copy the Project Token. The mixpanel-mcp-server uses this single token (write API). " +
+    "One mcpvault account = one Mixpanel project.",
 
   credentialFields: [
-    { key: "service_account_username", prompt: "Service account username" },
-    { key: "service_account_secret", prompt: "Service account secret", secret: true },
-    { key: "project_id", prompt: "Project ID (numeric)" },
+    { key: "project_token", prompt: "Mixpanel project token", secret: true },
   ],
 
   validate: async (creds) => {
-    const auth = "Basic " + Buffer.from(
-      `${String(creds.service_account_username)}:${String(creds.service_account_secret)}`,
-    ).toString("base64");
-    try {
-      const res = await fetch(
-        `https://mixpanel.com/api/app/projects/${encodeURIComponent(String(creds.project_id))}/`,
-        { headers: { Authorization: auth, Accept: "application/json" } },
-      );
-      if (!res.ok) {
-        const body = await res.text();
-        return { ok: false, error: `${res.status} ${res.statusText}: ${body.slice(0, 200)}` };
-      }
-      const proj = (await res.json()) as { name?: string; id?: number };
-      return {
-        ok: true,
-        identity: `mixpanel ${proj.name ?? proj.id ?? "project"}`,
-        suggestedLabel: slugify(proj.name ?? `mixpanel-${proj.id}`),
-        details: { proj },
-      };
-    } catch (e: any) {
-      return { ok: false, error: e.message };
+    // Mixpanel's project token doesn't have a clean validation endpoint without
+    // also having a service-account secret. We do format check only — the
+    // upstream server will fail loudly on first track call if the token is wrong.
+    const tok = String(creds.project_token).trim();
+    if (tok.length < 16) {
+      return { ok: false, error: "project token looks too short — typically ~32 chars" };
     }
+    return {
+      ok: true,
+      identity: `mixpanel project (${tok.slice(0, 4)}…${tok.slice(-4)})`,
+      suggestedLabel: "mixpanel",
+    };
   },
 
   spawnCmd: "npx",
-  spawnArgs: ["-y", "mixpanel-mcp-server"],
-  authMapping: (creds) => ({
-    MIXPANEL_USERNAME: String(creds.service_account_username),
-    MIXPANEL_SECRET: String(creds.service_account_secret),
-    MIXPANEL_PROJECT_ID: String(creds.project_id),
-  }),
+  // Upstream takes the token as a CLI arg via --token, not env var.
+  spawnArgs: ["-y", "mixpanel-mcp-server", "--token"],
+  authMapping: () => ({}),
+  argMapping: (creds) => [String(creds.project_token)],
 };
-
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "mixpanel";
-}

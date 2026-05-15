@@ -38,8 +38,10 @@ export const figmaAdapter: ProxyAdapter = {
   },
 
   spawnCmd: "npx",
-  spawnArgs: ["-y", "figma-mcp-server"],
-  authMapping: (creds) => ({ FIGMA_ACCESS_TOKEN: String(creds.access_token) }),
+  spawnArgs: ["-y", "@tmegit/figma-developer-mcp", "--stdio"],
+  authMapping: (creds) => ({
+    FIGMA_API_KEY: String(creds.access_token),
+  }),
 };
 
 function slugify(s: string): string {

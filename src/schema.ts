@@ -142,9 +142,7 @@ export const HubSpotCredsSchema = z.object({
 });
 
 export const MixpanelCredsSchema = z.object({
-  service_account_username: z.string().min(1),
-  service_account_secret: z.string().min(1),
-  project_id: z.string().min(1),
+  project_token: z.string().min(1),
 });
 
 export const OpenAICredsSchema = z.object({
